@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Analisis | Penganalisis Kulit GLCM{% endblock %}
+{% block content %}
+<section class="hero">
+    <div>
+        <span class="eyebrow">Proyek Akhir Pengolahan Citra</span>
+        <h1>Klasifikasikan gambar kulit dengan fitur tekstur GLCM.</h1>
+        <p>Demo ini menggunakan pola ko-okurensi skala abu-abu untuk menangkap tekstur, lalu pengklasifikasi terlatih memprediksi salah satu kelas dataset.</p>
+        <div class="hero-actions">
+            <a class="button secondary" href="{{ url_for('history') }}">Lihat riwayat</a>
+            {% if metrics %}<a class="button ghost" href="#metrics">Lihat metrik</a>{% endif %}
+        </div>
+    </div>
+    <div class="status-card {{ 'ready' if model_ready else 'waiting' }}">
+        <span class="status-dot"></span>
+        <strong>{{ 'Model siap' if model_ready else 'Jalankan pelatihan model terlebih dahulu' }}</strong>
+        <p>{{ total_predictions }} gambar dianalisis secara lokal</p>
+    </div>
+</section>
+
+<section class="grid two-up">
+    <div class="panel upload-panel">
+        <div class="panel-header">
+            <div>
+                <span class="eyebrow">Unggah</span>
+                <h2>Analisis gambar kulit</h2>
+            </div>
+        </div>
+        <form action="{{ url_for('analyze') }}" method="post" enctype="multipart/form-data">
+            <label class="drop-zone" id="dropZone" for="imageInput">
+                <img id="preview" hidden alt="Selected image preview">
+                <div id="dropPrompt">
+                    <h3>Taruh gambar di sini</h3>
+                        <p>atau klik untuk memilih file JPG, PNG, WebP, atau BMP</p>
+                        <small>Ukuran maksimal: 10 MB</small>
+                </div>
+            </label>
+            <input class="hidden-input" id="imageInput" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" required>
+            <div class="upload-row">
+                <span id="fileName">Belum ada gambar dipilih</span>
+                    <button class="button primary" type="submit" {% if not model_ready %}disabled{% endif %}>Jalankan analisis GLCM</button>
+            </div>
+        </form>
+        {% if not model_ready %}
+            <div class="callout">Jalankan <strong>python train.py</strong> di dalam folder <span>glcm_skin_app</span> terlebih dahulu untuk membuat artefak model.</div>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <span class="eyebrow">Alur kerja</span>
+                <h2>Cara kerja pengklasifikasi</h2>
+            </div>
+        </div>
+        <div class="step-list">
+            <div class="step"><b>01</b><div><strong>Ubah ke skala abu-abu</strong><p>Warna dihapus sehingga model fokus pada tekstur, bukan rona.</p></div></div>
+            <div class="step"><b>02</b><div><strong>Bangun fitur GLCM</strong><p>Matriks ko-okurensi menjelaskan bagaimana intensitas piksel muncul bersama pada beberapa arah.</p></div></div>
+            <div class="step"><b>03</b><div><strong>Prediksi kelas</strong><p>Random Forest membaca vektor tekstur dan mengembalikan label diagnosis yang paling mungkin.</p></div></div>
+        </div>
+    </div>
+</section>
+
+{% if metrics %}
+<section class="panel metrics-panel" id="metrics">
+    <div class="panel-header">
+        <div>
+            <span class="eyebrow">Evaluasi</span>
+            <h2>Metrik model</h2>
+        </div>
+    </div>
+    <div class="stats-grid">
+        <div class="stat"><span>Akurasi</span><strong>{{ '%.1f%%'|format(metrics.accuracy * 100) }}</strong></div>
+        <div class="stat"><span>Presisi</span><strong>{{ '%.1f%%'|format(metrics.precision * 100) }}</strong></div>
+        <div class="stat"><span>Recall</span><strong>{{ '%.1f%%'|format(metrics.recall * 100) }}</strong></div>
+        <div class="stat"><span>F1</span><strong>{{ '%.1f%%'|format(metrics.f1_score * 100) }}</strong></div>
+        <div class="stat"><span>Gambar latih</span><strong>{{ '{:,}'.format(metrics.train_size) }}</strong></div>
+        <div class="stat"><span>Gambar uji</span><strong>{{ '{:,}'.format(metrics.test_size) }}</strong></div>
+    </div>
+    {% if metrics.per_class_accuracy %}
+    <div class="class-grid">
+        {% for class_name, score in metrics.per_class_accuracy.items()|list|sort %}
+        <div class="class-pill"><span>{{ class_name.replace('_', ' ') }}</span><strong>{{ '%.0f%%'|format(score * 100) }}</strong></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+        <div class="chart-frame">
+        <img src="{{ url_for('static', filename='confusion_matrix.png') }}" alt="Matriks kebingungan">
+    </div>
+</section>
+{% endif %}
+
+{% if recent %}
+<section class="panel history-preview">
+    <div class="panel-header">
+        <div>
+            <span class="eyebrow">Terbaru</span>
+            <h2>Analisis terbaru</h2>
+        </div>
+        <a class="text-link" href="{{ url_for('history') }}">Buka riwayat lengkap</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Berkas</th><th>Prediksi</th><th>Kepercayaan</th><th>Tanggal</th></tr>
+            </thead>
+            <tbody>
+                {% for item in recent %}
+                <tr>
+                    <td>{{ item.filename }}</td>
+                    <td>{{ item.predicted_class }}</td>
+                    <td>{{ '%.1f%%'|format(item.confidence) }}</td>
+                    <td>{{ item.created_at[:19]|replace('T', ' ') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+const input = document.getElementById('imageInput');
+const preview = document.getElementById('preview');
+const prompt = document.getElementById('dropPrompt');
+const zone = document.getElementById('dropZone');
+const fileName = document.getElementById('fileName');
+
+function showPreview(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = event => {
+        preview.src = event.target.result;
+        preview.hidden = false;
+        prompt.hidden = true;
+        zone.classList.add('has-image');
+        fileName.textContent = file.name;
+    };
+    reader.readAsDataURL(file);
+}
+
+input.addEventListener('change', () => showPreview(input.files[0]));
+['dragenter', 'dragover'].forEach(eventName => {
+    zone.addEventListener(eventName, event => { event.preventDefault(); zone.classList.add('dragging'); });
+});
+['dragleave', 'drop'].forEach(eventName => {
+    zone.addEventListener(eventName, event => { event.preventDefault(); zone.classList.remove('dragging'); });
+});
+zone.addEventListener('drop', event => {
+    const file = event.dataTransfer.files[0];
+    if (file) {
+        const data = new DataTransfer();
+        data.items.add(file);
+        input.files = data.files;
+        showPreview(file);
+    }
+});
+</script>
+{% endblock %}

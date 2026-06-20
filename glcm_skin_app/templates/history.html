@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Riwayat | Penganalisis Kulit GLCM{% endblock %}
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <span class="eyebrow">Riwayat</span>
+            <h1>Analisis sebelumnya</h1>
+        </div>
+        <div class="muted">{{ total }} total prediksi</div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Berkas</th><th>Prediksi</th><th>Kepercayaan</th><th>Top 3</th><th>Tanggal</th></tr>
+            </thead>
+            <tbody>
+                {% for item in predictions %}
+                <tr>
+                    <td>{{ item.filename }}</td>
+                    <td>{{ item.predicted_class }}</td>
+                    <td>{{ '%.1f%%'|format(item.confidence) }}</td>
+                    <td>{{ item.top_predictions }}</td>
+                    <td>{{ item.created_at[:19]|replace('T', ' ') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="pager">
+        <span>Halaman {{ page }} dari {{ pages }}</span>
+        <div class="pager-links">
+            {% if page > 1 %}<a class="button secondary" href="{{ url_for('history', page=page - 1) }}">Sebelumnya</a>{% endif %}
+            {% if page < pages %}<a class="button secondary" href="{{ url_for('history', page=page + 1) }}">Berikutnya</a>{% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Hasil | Penganalisis Kulit GLCM{% endblock %}
+{% block content %}
+<section class="panel result-panel">
+    <div class="panel-header">
+        <div>
+            <span class="eyebrow">Hasil</span>
+            <h1>{{ predicted_label }}</h1>
+        </div>
+        <a class="button ghost" href="{{ url_for('index') }}">Analisis lagi</a>
+    </div>
+    <div class="result-grid">
+        <figure class="result-image">
+            <img src="{{ url_for('uploaded_file', filename=image_filename) }}" alt="Uploaded image">
+            <figcaption>{{ original_filename }}</figcaption>
+        </figure>
+        <div class="result-copy">
+            <div class="score-card">
+                <span>Kelas terprediksi</span>
+                <strong>{{ predicted_label }}</strong>
+                <p>{{ '%.1f%%'|format(confidence) }} kepercayaan dari {{ feature_count }} fitur GLCM.</p>
+            </div>
+            <div class="top-list">
+                <h3>Prediksi teratas</h3>
+                {% for item in top_predictions %}
+                <div class="top-item">
+                    <div>
+                        <strong>{{ item.label }}</strong>
+                        <span>{{ item.class_name }}</span>
+                    </div>
+                    <b>{{ '%.1f%%'|format(item.probability * 100) }}</b>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="callout">Ini adalah pengklasifikasi berbasis tekstur untuk tugas kuliah, bukan alat diagnosis medis. Lebih baik pergi ke dokter, bukan tanya AI</div>
+        </div>
+    </div>
+</section>
+{% endblock %}
